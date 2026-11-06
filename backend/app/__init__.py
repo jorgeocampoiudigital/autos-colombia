@@ -6,7 +6,7 @@ from flask import Flask
 from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 
-from app.config import Config, DevelopmentConfig
+from app.config import CLAVES_INSEGURAS, Config, DevelopmentConfig
 from app.errors import register_error_handlers
 from app.extensions import db
 
@@ -26,6 +26,10 @@ class JSONProvider(DefaultJSONProvider):
 def create_app(config_class: type[Config] = DevelopmentConfig) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
+    if not (app.config.get("DEBUG") or app.config.get("TESTING")):
+        clave = app.config.get("SECRET_KEY") or ""
+        if clave in CLAVES_INSEGURAS or len(clave) < 32:
+            raise RuntimeError("SECRET_KEY debe definirse con al menos 32 caracteres aleatorios en producción")
     app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB por carga
     app.json = JSONProvider(app)
     app.json.ensure_ascii = False

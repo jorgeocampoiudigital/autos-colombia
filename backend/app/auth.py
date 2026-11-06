@@ -40,7 +40,15 @@ def _cargar_operador() -> None:
         raise Unauthorized("La sesión expiró")
     except jwt.PyJWTError:
         raise Unauthorized("Token inválido")
-    g.operador = {"id": int(datos["sub"]), "rol": datos["rol"], "nombre": datos["nombre"]}
+    # El token prueba la identidad; el rol y el estado se leen de la BD en cada petición,
+    # así desactivar a un operador o cambiarle el rol surte efecto de inmediato.
+    from app.extensions import db
+    from app.models import Operador
+
+    op = db.session.get(Operador, int(datos["sub"]))
+    if op is None or not op.activo:
+        raise Unauthorized("La sesión ya no es válida")
+    g.operador = {"id": op.id_operador, "rol": op.rol, "nombre": op.nombre}
 
 
 def login_required(fn: Callable) -> Callable:
