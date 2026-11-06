@@ -63,14 +63,33 @@ CREATE TRIGGER trg_usuario_updated BEFORE UPDATE ON usuario
 -- operador (login + roles)
 -- ---------------------------------------------------------------------
 CREATE TABLE operador (
-  id_operador  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  nombre       VARCHAR(100) NOT NULL,
-  usuario      VARCHAR(30)  NOT NULL UNIQUE,
-  clave_hash   VARCHAR(255) NOT NULL,
-  rol          rol_operador NOT NULL,
-  activo       BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+  id_operador        INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  nombre             VARCHAR(100) NOT NULL,
+  usuario            VARCHAR(30)  NOT NULL UNIQUE,
+  clave_hash         VARCHAR(255) NOT NULL,
+  rol                rol_operador NOT NULL,
+  activo             BOOLEAN      NOT NULL DEFAULT TRUE,
+  debe_cambiar_clave BOOLEAN      NOT NULL DEFAULT FALSE,
+  intentos_fallidos  SMALLINT     NOT NULL DEFAULT 0,
+  bloqueado_hasta    TIMESTAMPTZ,
+  ultimo_acceso      TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- RN-07: siempre debe quedar al menos un ADMIN activo
+CREATE OR REPLACE FUNCTION exigir_admin_activo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  -- Serializa los cambios de rol/estado para que dos ADMIN no se desactiven a la vez
+  PERFORM pg_advisory_xact_lock(hashtext('operador_admin_activo'));
+  IF EXISTS (SELECT 1 FROM operador)
+     AND NOT EXISTS (SELECT 1 FROM operador WHERE rol = 'ADMIN' AND activo) THEN
+    RAISE EXCEPTION 'Debe quedar al menos un administrador activo';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE OR REPLACE TRIGGER trg_operador_admin_activo AFTER UPDATE OF rol, activo ON operador
+  FOR EACH STATEMENT EXECUTE FUNCTION exigir_admin_activo();
 
 -- ---------------------------------------------------------------------
 -- vehiculo

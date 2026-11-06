@@ -30,6 +30,9 @@ def emitir_token(id_operador: int, rol: str, nombre: str) -> str:
     return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
 
 
+_PERMITIDOS_CON_CLAVE_TEMPORAL = {"auth.me", "auth.cambiar_clave"}
+
+
 def _cargar_operador() -> None:
     cabecera = request.headers.get("Authorization", "")
     if not cabecera.startswith("Bearer "):
@@ -48,6 +51,9 @@ def _cargar_operador() -> None:
     op = db.session.get(Operador, int(datos["sub"]))
     if op is None or not op.activo:
         raise Unauthorized("La sesión ya no es válida")
+    # Con contraseña temporal solo se permite consultar el perfil y cambiarla
+    if op.debe_cambiar_clave and request.endpoint not in _PERMITIDOS_CON_CLAVE_TEMPORAL:
+        raise Forbidden("Debes cambiar tu contraseña temporal antes de continuar")
     g.operador = {"id": op.id_operador, "rol": op.rol, "nombre": op.nombre}
 
 
