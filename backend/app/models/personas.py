@@ -50,4 +50,8 @@ class Operador(db.Model):
     clave_hash: Mapped[str] = mapped_column(String(255))
     rol: Mapped[str] = mapped_column(RolOperador)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    debe_cambiar_clave: Mapped[bool] = mapped_column(Boolean, default=False)
+    intentos_fallidos: Mapped[int] = mapped_column(SmallInteger, default=0)
+    bloqueado_hasta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

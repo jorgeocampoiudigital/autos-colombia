@@ -24,6 +24,7 @@ export class AuthService {
   readonly operador = signal<Operador | null>(this.cargarOperador());
   readonly autenticado = computed(() => !!this.token() && !!this.operador());
   readonly esAdmin = computed(() => this.operador()?.rol === 'ADMIN');
+  readonly debeCambiarClave = computed(() => !!this.operador()?.debe_cambiar_clave);
   readonly iniciales = computed(() =>
     (this.operador()?.nombre ?? '').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
 
@@ -40,6 +41,21 @@ export class AuthService {
         this.token.set(r.token);
         this.operador.set(r.operador);
       }));
+  }
+
+  cambiarClave(clave_actual: string, clave_nueva: string) {
+    return this.http.post<Operador>(`${environment.apiUrl}/auth/cambiar-clave`, { clave_actual, clave_nueva }).pipe(
+      tap(op => this.guardarOperador(op)));
+  }
+
+  /** Refresca rol/estado desde el servidor (p. ej. si un ADMIN cambió el rol). */
+  refrescarPerfil() {
+    return this.http.get<Operador>(`${environment.apiUrl}/auth/me`).pipe(tap(op => this.guardarOperador(op)));
+  }
+
+  private guardarOperador(op: Operador): void {
+    escribir(KEY_OP, JSON.stringify(op));
+    this.operador.set(op);
   }
 
   logout(): void {
