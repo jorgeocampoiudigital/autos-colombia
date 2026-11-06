@@ -83,7 +83,18 @@ def listar_vehiculos(q: str | None, page: int, per_page: int) -> dict:
 
 
 def _nuevo_vehiculo(datos: VehiculoIn, id_usuario: int) -> Vehiculo:
-    return Vehiculo(**datos.model_dump(), id_usuario=id_usuario)
+    # VehiculoCreateIn ya trae id_usuario: se excluye para no pasarlo dos veces.
+    return Vehiculo(**datos.model_dump(exclude={"id_usuario"}), id_usuario=id_usuario)
+
+
+def _cliente_activo(id_usuario: int) -> Usuario:
+    """Un cliente inactivo no puede recibir vehículos ni mensualidades nuevas."""
+    u = db.session.get(Usuario, id_usuario)
+    if not u:
+        raise NotFound("Cliente no encontrado")
+    if not u.activo:
+        raise Conflict("El cliente está inactivo; reactívalo antes de continuar")
+    return u
 
 
 def crear(datos: ClienteIn) -> dict:
@@ -108,8 +119,7 @@ def actualizar(id_usuario: int, datos: ClienteUpdateIn) -> dict:
 
 
 def crear_vehiculo(datos: VehiculoCreateIn) -> dict:
-    if not db.session.get(Usuario, datos.id_usuario):
-        raise NotFound("Cliente no encontrado")
+    _cliente_activo(datos.id_usuario)
     db.session.add(_nuevo_vehiculo(datos, datos.id_usuario))
     db.session.commit()
     return ficha(datos.id_usuario)
@@ -117,6 +127,7 @@ def crear_vehiculo(datos: VehiculoCreateIn) -> dict:
 
 # ---- mensualidades ----
 def asignar_mensualidad(datos: MensualidadIn) -> dict:
+    _cliente_activo(datos.id_usuario)
     veh = db.session.get(Vehiculo, datos.placa)
     if not veh or veh.id_usuario != datos.id_usuario:
         raise AppError("El vehículo no pertenece a ese cliente", 422)

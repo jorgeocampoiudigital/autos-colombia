@@ -1,8 +1,9 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import text
 
 from app.extensions import db
+from app.services._sql import hoy as hoy_bogota
 
 
 def test_login_incorrecto_no_revela_cual_falla(client):
@@ -66,9 +67,9 @@ def test_salida_libera_celda_y_queda_historial(client, oper, admin):            
     assert celda["estado"] == "VACIA_ASIGNADA"          # vacía pero conserva la mensualidad
     h = client.get("/api/movimientos/historial?placa=ktr482", headers=oper).json
     assert [e["movimiento"] for e in h["items"]] == ["SALIDA", "ENTRADA"] and h["total"] == 2
-    hoy = date.today().isoformat()
+    hoy = hoy_bogota().isoformat()
     assert client.get(f"/api/movimientos/historial?desde={hoy}&hasta={hoy}", headers=oper).json["total"] == 2
-    ayer = (date.today() - timedelta(days=2)).isoformat()
+    ayer = (hoy_bogota() - timedelta(days=2)).isoformat()
     assert client.get(f"/api/movimientos/historial?hasta={ayer}", headers=oper).json["total"] == 0
 
 
@@ -91,7 +92,7 @@ def test_celda_ocupada_no_admite_segundo_vehiculo(client, oper, datos):
     
     r = client.post("/api/mensualidades", json={
         "id_usuario": datos["luis"].id_usuario, "placa": "ABC123", "id_celda": datos["celdas"]["A02"].id_celda,
-        "fecha_inicio": date.today().isoformat()}, headers=oper)
+        "fecha_inicio": hoy_bogota().isoformat()}, headers=oper)
     assert r.status_code == 403   # solo ADMIN asigna
     r = client.post("/api/movimientos/entrada", json={"placa": "KTR482", "id_celda": datos["celdas"]["A01"].id_celda}, headers=oper)
     assert r.status_code == 409
@@ -122,7 +123,7 @@ def test_placa_minuscula_rechazada_por_la_bd(app, datos):
 
 def test_asignar_mensualidad_crea_cobro_y_rechaza_solapes(client, admin, datos):
     body = {"id_usuario": datos["luis"].id_usuario, "placa": "ABC123",
-            "id_celda": datos["celdas"]["A02"].id_celda, "fecha_inicio": date.today().isoformat()}
+            "id_celda": datos["celdas"]["A02"].id_celda, "fecha_inicio": hoy_bogota().isoformat()}
     r = client.post("/api/mensualidades", json=body, headers=admin)
     assert r.status_code == 201 and r.json["codigo"].startswith("MEN-") and r.json["valor_mensual"] == 300000
     

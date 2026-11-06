@@ -4,7 +4,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import (BaseModel, BeforeValidator, ConfigDict, EmailStr, Field, StringConstraints,
+                      ValidationInfo, field_validator)
 
 TipoVehiculo = Literal["CARRO", "MOTO"]
 TipoDocumento = Literal["CC", "CE", "NIT", "PAS"]
@@ -23,6 +24,11 @@ Placa = Annotated[
     BeforeValidator(normalizar_placa),
     StringConstraints(pattern=r"^[A-Z0-9]{5,8}$"),
 ]
+# Formato de placas particulares en Colombia según el tipo de vehículo.
+FORMATO_PLACA: dict[str, tuple[re.Pattern[str], str]] = {
+    "CARRO": (re.compile(r"^[A-Z]{3}[0-9]{3}$"), "3 letras y 3 números (ej. ABC123)"),
+    "MOTO": (re.compile(r"^[A-Z]{3}[0-9]{2}[A-Z]?$"), "3 letras, 2 números y opcionalmente 1 letra (ej. ABC12D)"),
+}
 Texto = Annotated[str, StringConstraints(strip_whitespace=True)]
 
 
@@ -47,12 +53,22 @@ class SalidaIn(Base):
 
 
 class VehiculoIn(Base):
+    tipo: TipoVehiculo = "CARRO"            # antes que placa: el validador de placa lo necesita
     placa: Placa
-    tipo: TipoVehiculo = "CARRO"
     marca: str | None = Field(default=None, max_length=50)
     linea: str | None = Field(default=None, max_length=50)
     color: str | None = Field(default=None, max_length=30)
     anio_modelo: int | None = Field(default=None, ge=1950, le=2100)
+
+    @field_validator("placa")
+    @classmethod
+    def placa_segun_tipo(cls, placa: str, info: ValidationInfo) -> str:
+        tipo = info.data.get("tipo")
+        if tipo in FORMATO_PLACA:
+            patron, ayuda = FORMATO_PLACA[tipo]
+            if not patron.match(placa):
+                raise ValueError(f"Placa inválida para {tipo.lower()}: debe tener {ayuda}")
+        return placa
 
 
 class VehiculoCreateIn(VehiculoIn):
