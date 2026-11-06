@@ -40,7 +40,7 @@ interface ItemNav { ruta: string; texto: string; icono: IconName; }
         @if (auth.esAdmin()) {
           <div class="nav-label">ADMINISTRACIÓN</div>
           <nav class="nav">
-            <span class="inert" title="Próximamente"><app-icon name="shield" /> Usuarios y roles</span>
+            <a routerLink="/usuarios" routerLinkActive="active"><app-icon name="shield" [size]="18" />Usuarios y roles</a>
             <span class="inert" title="Próximamente"><app-icon name="gear" /> Configuración</span>
           </nav>
         }
@@ -52,6 +52,7 @@ interface ItemNav { ruta: string; texto: string; icono: IconName; }
         <div class="me">
           <div class="avatar">{{ auth.iniciales() }}</div>
           <div><b>{{ auth.operador()?.nombre }}</b><small>{{ auth.esAdmin() ? 'Administrador' : 'Operador' }}</small></div>
+          <a routerLink="/cambiar-clave" aria-label="Cambiar contraseña" title="Cambiar contraseña" class="me-btn"><app-icon name="gear" /></a>
           <button type="button" (click)="auth.logout()" aria-label="Cerrar sesión" title="Cerrar sesión"><app-icon name="logout" /></button>
         </div>
       </aside>

@@ -37,15 +37,29 @@ La URL de la API está en `src/environments/environment.ts`. CORS solo permite `
 ```powershell
 createdb -U postgres parqueadero_test
 $env:TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/parqueadero_test"
-cd backend ; pytest -q                  # 50 pruebas contra PostgreSQL real
+cd backend ; pytest -q                  # 70 pruebas contra PostgreSQL real
 ```
 Las pruebas borran y recrean el esquema de `parqueadero_test` en cada caso; no las apuntes a la base de desarrollo.
 
 ### Actualizar una base creada antes de la Iteración 2
-Si ya tienes datos y no quieres ejecutar `init-db --reset`, aplica la migración (no borra datos y se puede ejecutar más de una vez):
+Si ya tienes datos y no quieres ejecutar `init-db --reset`, aplica las migraciones en orden (no borran datos y se pueden ejecutar más de una vez):
 ```powershell
 psql -h localhost -U postgres -d parqueadero -f db/migraciones/001_iteracion2_bloqueo_celdas.sql
+psql -h localhost -U postgres -d parqueadero -f db/migraciones/002_iteracion2_usuarios_sistema.sql
 ```
+
+## Usuarios del sistema y roles
+| Rol | Puede |
+|---|---|
+| `OPERADOR` | Entradas y salidas, clientes y vehículos, pagos, novedades y consultas |
+| `ADMIN` | Todo lo anterior, más mensualidades, mantenimiento de celdas y **Usuarios y roles** |
+
+- **Alta:** el ADMIN crea el usuario con una contraseña temporal (la pantalla puede generarla). En el primer ingreso el sistema solo deja cambiarla; el resto de la API responde 403 hasta hacerlo.
+- **Contraseñas:** mínimo 8 caracteres con mayúscula, minúscula, número y símbolo (validado en backend y frontend).
+- **Bloqueo:** 5 intentos fallidos seguidos bloquean el usuario 15 minutos (`423`). El ADMIN puede desbloquearlo o asignarle una clave temporal, que también lo desbloquea. Un usuario inexistente siempre recibe el mismo mensaje genérico.
+- **Desactivar o cambiar el rol** surte efecto en la siguiente petición del usuario afectado, sin esperar a que venza su sesión.
+- **Siempre queda un ADMIN activo:** nadie puede desactivarse ni cambiar su propio rol, y la BD (trigger `exigir_admin_activo`) rechaza cualquier cambio que deje el sistema sin administradores, incluso si dos ADMIN lo intentan a la vez.
+- Cualquier usuario puede cambiar su contraseña desde el ícono junto a "Cerrar sesión".
 
 ## Configuración (`backend/.env`)
 | Variable | Uso | Por defecto |
@@ -69,6 +83,8 @@ Cada conexión a la base fija la zona horaria `America/Bogota`, de modo que `CUR
 | Celda automática o manual | asignada a la mensualidad → primera `DISPONIBLE` del tipo; manual validada (tipo, estado, asignación) |
 | Login, hash y roles | JWT + bcrypt; `ADMIN` gestiona celdas y asigna mensualidades |
 | Rol y estado del operador vigentes | se leen de la BD en cada petición: desactivar o cambiar el rol aplica sin esperar a que venza el token |
+| Al menos un ADMIN activo | `usuario_service` (no auto-desactivarse) + trigger `exigir_admin_activo` con bloqueo consultivo |
+| Bloqueo por intentos fallidos | `auth_service.login` (`MAX_INTENTOS_LOGIN`, `MINUTOS_BLOQUEO`) |
 | Placa normalizada y con formato por tipo | Pydantic: carro `AAA999`, moto `AAA99` / `AAA99A`; `CHECK` en `vehiculo` (mayúsculas, 5–8 caracteres) |
 | Cliente inactivo | no ingresa ni recibe vehículos o mensualidades nuevas; sí puede registrar la salida |
 | Celda ocupada no pasa a mantenimiento | `celda_service` + trigger `validar_mantenimiento`; `SELECT … FOR UPDATE` sobre la celda serializa mantenimiento y entradas |
@@ -80,19 +96,20 @@ Cada conexión a la base fija la zona horaria `America/Bogota`, de modo que `CUR
 El estado de una celda (Ocupada / Vacía asignada / Disponible / Fuera de servicio), la vigencia de una mensualidad y la mora de un cobro **se calculan** (vistas `v_celda_estado`, `v_cobro_saldo`, `v_mensualidad_estado`); no se guardan.
 
 ## API (prefijo `/api`, Bearer JWT salvo login)
-`POST auth/login` · `GET auth/me` · `GET resumen` ·
+`POST auth/login` · `GET auth/me` · `POST auth/cambiar-clave` · `GET resumen` ·
 `GET movimientos/placa/<placa>` · `POST movimientos/entrada|salida` · `GET movimientos/presentes|historial|kpis` ·
 `GET/POST clientes` · `GET/PATCH clientes/<id>` (incluye `activo`) · `GET/POST vehiculos` · `GET/POST mensualidades` (POST: ADMIN) ·
 `GET celdas` · `GET celdas/<id>` · `POST celdas/<id>/mantenimiento|habilitar` (ADMIN) ·
 `GET cobros` · `GET pagos` · `GET pagos/kpis` · `POST pagos` ·
-`GET/POST novedades` · `GET novedades/<id>` · `PATCH novedades/<id>/estado` · `POST archivos`
+`GET/POST novedades` · `GET novedades/<id>` · `PATCH novedades/<id>/estado` · `POST archivos` ·
+`GET/POST usuarios` · `PATCH usuarios/<id>` · `POST usuarios/<id>/restablecer-clave|desbloquear` (ADMIN)
 
 Errores: siempre `{ "error": "mensaje", "status": 409 }` (más `details` en validaciones 422).
-Códigos: `401` sin sesión o sesión inválida · `403` sin permiso · `404` no existe · `409` regla de negocio · `422` datos inválidos · `503` base de datos no disponible.
+Códigos: `401` sin sesión o sesión inválida · `403` sin permiso o contraseña temporal pendiente · `404` no existe · `409` regla de negocio · `422` datos inválidos · `423` usuario bloqueado · `503` base de datos no disponible.
 
 ## Iteraciones
 | Iteración | Alcance | Estado |
 |---|---|---|
 | 1 | Entrada y salida de vehículos | Entregada |
-| 2 | Gestión de usuarios (clientes, vehículos, mensualidades, acceso por rol) y gestión de celdas | En curso · pendiente: administración de usuarios del sistema (alta, rol, activar/desactivar operadores) |
+| 2 | Gestión de usuarios (clientes, vehículos, mensualidades, usuarios del sistema y roles) y gestión de celdas | Implementada |
 | 3 | Gestión de pagos (y novedades) | Ya implementada en el código; se documenta y prueba en la Iteración 3 |

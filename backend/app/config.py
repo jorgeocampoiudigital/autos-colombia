@@ -19,6 +19,8 @@ class Config:
     }
     CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
     JWT_HORAS: int = int(os.getenv("JWT_HORAS", "8"))
+    MAX_INTENTOS_LOGIN: int = 5          # intentos fallidos seguidos antes del bloqueo
+    MINUTOS_BLOQUEO: int = 15
     
     DIAS_VENCIMIENTO_COBRO: int = 14 
     VALOR_MENSUALIDAD_DEFECTO: int = 300000

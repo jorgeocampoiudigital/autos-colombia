@@ -51,6 +51,7 @@ def create_app(config_class: type[Config] = DevelopmentConfig) -> Flask:
     from app.routes.novedad_routes import novedad_bp
     from app.routes.pago_routes import pago_bp
     from app.routes.resumen_routes import resumen_bp
+    from app.routes.usuario_routes import usuario_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(resumen_bp, url_prefix="/api/resumen")
@@ -60,6 +61,7 @@ def create_app(config_class: type[Config] = DevelopmentConfig) -> Flask:
     app.register_blueprint(pago_bp, url_prefix="/api")
     app.register_blueprint(novedad_bp, url_prefix="/api/novedades")
     app.register_blueprint(archivo_bp, url_prefix="/api/archivos")
+    app.register_blueprint(usuario_bp, url_prefix="/api/usuarios")
 
     register_error_handlers(app)
 

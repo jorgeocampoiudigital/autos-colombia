@@ -133,3 +133,46 @@ class NovedadEstadoIn(Base):
 
 class MantenimientoIn(Base):
     motivo: str = Field(min_length=3, max_length=200)
+
+
+# ---- usuarios del sistema (operadores) ----
+Rol = Literal["ADMIN", "OPERADOR"]
+
+
+def validar_clave(clave: str) -> str:
+    """RNF: mínimo 8 caracteres con al menos una mayúscula, una minúscula, un número y un símbolo."""
+    faltan = [nombre for nombre, patron in (
+        ("una mayúscula", r"[A-ZÁÉÍÓÚÑ]"), ("una minúscula", r"[a-záéíóúñ]"),
+        ("un número", r"\d"), ("un símbolo", r"[^\w\s]"),
+    ) if not re.search(patron, clave)]
+    if len(clave) < 8:
+        faltan.insert(0, "mínimo 8 caracteres")
+    if faltan:
+        raise ValueError("La contraseña no cumple la política. Le falta: " + ", ".join(faltan))
+    return clave
+
+
+Clave = Annotated[str, Field(max_length=100), BeforeValidator(lambda v: validar_clave(str(v or "")))]
+
+
+class OperadorIn(Base):
+    nombre: str = Field(min_length=2, max_length=100)
+    usuario: Annotated[str, BeforeValidator(lambda v: str(v or "").strip().lower())] = Field(
+        pattern=r"^[a-z0-9._]{3,30}$", description="minúsculas, números, punto o guion bajo")
+    rol: Rol = "OPERADOR"
+    clave_temporal: Clave
+
+
+class OperadorUpdateIn(Base):
+    nombre: str | None = Field(default=None, min_length=2, max_length=100)
+    rol: Rol | None = None
+    activo: bool | None = None
+
+
+class RestablecerClaveIn(Base):
+    clave_temporal: Clave
+
+
+class CambioClaveIn(Base):
+    clave_actual: str = Field(min_length=1, max_length=100)
+    clave_nueva: Clave
