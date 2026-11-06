@@ -33,7 +33,7 @@ def _celda_libre_para(tipo: str, mens: dict | None) -> dict | None:
 def consultar_placa(placa: str) -> dict:
     v = fila(
         """SELECT v.placa, v.tipo, v.marca, v.linea, v.color, v.anio_modelo,
-                  u.id_usuario, u.nombre AS cliente
+                  u.id_usuario, u.nombre AS cliente, u.activo AS cliente_activo
            FROM vehiculo v JOIN usuario u USING (id_usuario) WHERE v.placa = :p""", p=placa)
     if not v:
         return {"placa": placa, "registrada": False, "puede_ingresar": False,
@@ -45,6 +45,8 @@ def consultar_placa(placa: str) -> dict:
     sugerida = None if mov else _celda_libre_para(v["tipo"], mens)
     if mov:
         mensaje = f"El vehículo ya está dentro ({mov['celda']})"
+    elif not v["cliente_activo"]:
+        mensaje = "El cliente está inactivo: no puede ingresar"
     elif not mens:
         mensaje = "Sin mensualidad vigente: no puede ingresar"
     elif not sugerida:
@@ -57,7 +59,7 @@ def consultar_placa(placa: str) -> dict:
         "placa": placa, "registrada": True, "vehiculo": v, "cliente": v["cliente"],
         "mensualidad": mens, "presente": mov is not None, "movimiento_abierto": mov,
         "celda_sugerida": sugerida, "mensaje": mensaje,
-        "puede_ingresar": bool(mens) and mov is None and sugerida is not None,
+        "puede_ingresar": bool(mens) and mov is None and sugerida is not None and v["cliente_activo"],
     }
 
 
@@ -66,7 +68,9 @@ def registrar_entrada(placa: str, id_celda: int | None, observacion: str | None,
     veh = db.session.get(Vehiculo, placa)
     if not veh:
         raise NotFound("La placa no está registrada")
-    
+    if not veh.usuario.activo:
+        raise Conflict("El cliente está inactivo: no puede ingresar")
+
     mens = _mensualidad_vigente(placa)
     if not mens:
         raise Conflict("El vehículo no tiene una mensualidad vigente")

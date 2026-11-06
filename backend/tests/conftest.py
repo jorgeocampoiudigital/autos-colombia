@@ -10,6 +10,7 @@ from app import create_app
 from app.auth import hash_clave
 from app.config import TestingConfig
 from app.extensions import db
+from app.services._sql import hoy as hoy_bogota
 from app.models import Celda, Cobro, MantenimientoCelda, Mensualidad, Operador, Sede, Usuario, Vehiculo
 
 SCHEMA = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
@@ -50,7 +51,7 @@ def datos(app):
         Vehiculo(placa="MOT123", tipo="MOTO", id_usuario=luis.id_usuario),
     ])
     db.session.flush()
-    hoy = date.today()
+    hoy = hoy_bogota()
     m = Mensualidad(id_usuario=ana.id_usuario, placa="KTR482", id_celda=celdas["A01"].id_celda,
                     fecha_inicio=hoy - timedelta(days=5), fecha_fin=hoy + timedelta(days=20), valor_mensual=300000)
     db.session.add(m)

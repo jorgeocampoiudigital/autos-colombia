@@ -9,6 +9,10 @@ export interface NuevoCliente {
   email?: string | null; direccion?: string | null;
   vehiculos: { placa: string; tipo: string; marca?: string | null; linea?: string | null; color?: string | null; anio_modelo?: number | null }[];
 }
+export interface NuevoVehiculo {
+  id_usuario: number; placa: string; tipo: string; marca?: string | null; linea?: string | null;
+  color?: string | null; anio_modelo?: number | null;
+}
 export interface NuevaMensualidad {
   id_usuario: number; placa: string; id_celda: number; fecha_inicio: string; valor_mensual?: number | null;
 }
@@ -23,12 +27,13 @@ export class ClientesService {
   }
   ficha(id: number) { return this.http.get<Ficha>(`${this.api}/clientes/${id}`); }
   crear(c: NuevoCliente) { return this.http.post<Ficha>(`${this.api}/clientes`, c); }
-  actualizar(id: number, c: Partial<Pick<Ficha, 'nombre' | 'telefono' | 'email' | 'direccion'>>) {
+  actualizar(id: number, c: Partial<Pick<Ficha, 'nombre' | 'telefono' | 'email' | 'direccion' | 'activo'>>) {
     return this.http.patch<Ficha>(`${this.api}/clientes/${id}`, c);
   }
   vehiculos(q: string, page = 1, per_page = 8) {
     return this.http.get<Pagina<VehiculoFila>>(`${this.api}/vehiculos`, { params: params({ q, page, per_page }) });
   }
+  crearVehiculo(v: NuevoVehiculo) { return this.http.post<Ficha>(`${this.api}/vehiculos`, v); }
   mensualidades(q: string, page = 1, per_page = 8) {
     return this.http.get<Pagina<MensualidadFila>>(`${this.api}/mensualidades`, { params: params({ q, page, per_page }) });
   }
