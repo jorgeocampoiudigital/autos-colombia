@@ -226,6 +226,8 @@ select { appearance: none; padding-right: 34px; background-image: url("data:imag
 .me b { color: #fff; font-size: 13px; display: block; }
 .me small { font-size: 11px; }
 .me button { margin-left: auto; background: none; border: 0; color: var(--side-ink); cursor: pointer; padding: 4px; }
+.me .me-btn { margin-left: auto; color: var(--side-ink); padding: 4px; display: inline-flex; }
+.me .me-btn + button { margin-left: 0; }
 .main { min-width: 0; display: flex; flex-direction: column; }
 .topbar { height: 72px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; }
 .crumb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }

@@ -1,11 +1,12 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { adminGuard, authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./features/login/login.component').then(m => m.LoginComponent) },
   {
     path: '',
     canActivate: [authGuard],
+    canActivateChild: [authGuard],
     loadComponent: () => import('./layout/shell.component').then(m => m.ShellComponent),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'resumen' },
@@ -21,6 +22,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/pagos/pagos.component').then(m => m.PagosComponent) },
       { path: 'novedades', data: { titulo: 'Novedades' },
         loadComponent: () => import('./features/novedades/novedades.component').then(m => m.NovedadesComponent) },
+      { path: 'usuarios', data: { titulo: 'Usuarios y roles' }, canActivate: [adminGuard],
+        loadComponent: () => import('./features/usuarios/usuarios.component').then(m => m.UsuariosComponent) },
+      { path: 'cambiar-clave', data: { titulo: 'Cambiar contraseña' },
+        loadComponent: () => import('./features/cambiar-clave/cambiar-clave.component').then(m => m.CambiarClaveComponent) },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -5,7 +5,15 @@ export type TipoNovedad = 'OBSERVACION' | 'DANO' | 'OBJETO_OLVIDADO' | 'INCIDENT
 export type MedioPago = 'TRANSFERENCIA' | 'EFECTIVO' | 'TARJETA' | 'OTRO';
 export type Rol = 'ADMIN' | 'OPERADOR';
 
-export interface Operador { id: number; nombre: string; usuario: string; rol: Rol; }
+export interface Operador { id: number; nombre: string; usuario: string; rol: Rol; debe_cambiar_clave?: boolean; }
+
+export interface UsuarioSistema {
+  id: number; nombre: string; usuario: string; rol: Rol; activo: boolean; bloqueado: boolean;
+  bloqueado_hasta: string | null; debe_cambiar_clave: boolean; ultimo_acceso: string | null; created_at: string;
+}
+export interface UsuariosResp {
+  items: UsuarioSistema[]; resumen: { total: number; activos: number; administradores: number };
+}
 export interface LoginResp { token: string; operador: Operador; }
 
 export interface Pagina<T> { total: number; page: number; per_page: number; items: T[]; }
