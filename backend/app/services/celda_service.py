@@ -1,3 +1,5 @@
+from sqlalchemy import func, select
+
 from app.errors import Conflict, NotFound
 from app.extensions import db
 from app.models import Celda, MantenimientoCelda
@@ -54,10 +56,16 @@ def detalle(id_celda: int) -> dict:
     }
 
 
-def poner_en_mantenimiento(id_celda: int, motivo: str) -> dict:
-    celda = db.session.get(Celda, id_celda)
+def _bloquear_celda(id_celda: int) -> Celda:
+    """SELECT … FOR UPDATE: serializa mantenimiento y entradas sobre la misma celda."""
+    celda = db.session.scalar(select(Celda).where(Celda.id_celda == id_celda).with_for_update())
     if not celda:
         raise NotFound("Celda no encontrada")
+    return celda
+
+
+def poner_en_mantenimiento(id_celda: int, motivo: str) -> dict:
+    _bloquear_celda(id_celda)
     est = fila("SELECT estado FROM v_celda_estado WHERE id_celda=:id", id=id_celda)
     if est and est["estado"] == "OCUPADA":
         raise Conflict("No se puede deshabilitar una celda con un vehículo dentro")
@@ -67,11 +75,11 @@ def poner_en_mantenimiento(id_celda: int, motivo: str) -> dict:
 
 
 def habilitar(id_celda: int) -> dict:
+    _bloquear_celda(id_celda)
     m = (db.session.query(MantenimientoCelda)
          .filter_by(id_celda=id_celda, fecha_fin=None).one_or_none())
     if not m:
         raise Conflict("La celda no está fuera de servicio")
-    from sqlalchemy import func
     m.fecha_fin = func.current_date()
     db.session.commit()
     return detalle(id_celda)

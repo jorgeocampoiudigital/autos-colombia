@@ -91,13 +91,20 @@ type Tab = 'clientes' | 'vehiculos';
                 <span class="avatar lg">{{ iniciales(f.nombre) }}</span>
                 <div><div style="font-size: 19px">{{ f.nombre }}</div><div class="muted" style="font-size: 12px">Cliente desde el {{ fecha(f.created_at) }}</div></div>
               </div>
-              <app-badge [estado]="f.activo ? 'AL_DIA' : 'CERRADA'" [etiqueta]="f.activo ? 'Cliente activo' : 'Cliente inactivo'" />
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+                <app-badge [estado]="f.activo ? 'AL_DIA' : 'CERRADA'" [etiqueta]="f.activo ? 'Cliente activo' : 'Cliente inactivo'" />
+                <button type="button" class="link" [disabled]="guardando()" (click)="cambiarActivo(f)">{{ f.activo ? 'Inactivar cliente' : 'Reactivar cliente' }}</button>
+              </div>
+              @if (!f.activo) { <p class="note">Un cliente inactivo no puede ingresar vehículos ni recibir vehículos o mensualidades nuevas.</p> }
               <dl class="dl">
                 <dt>Identificación</dt><dd>{{ f.tipo_documento === 'CC' ? 'Cédula de ciudadanía' : f.tipo_documento }} · {{ doc(f.documento) }}</dd>
                 <dt>Celular</dt><dd>{{ f.telefono ? '+57 ' + tel(f.telefono) : '—' }}</dd>
                 <dt>Correo electrónico</dt><dd>{{ f.email ?? '—' }}</dd>
                 <dt>Dirección</dt><dd>{{ f.direccion ?? '—' }}</dd>
               </dl>
+              @if (f.activo) {
+                <button type="button" class="btn btn-outline" style="margin-top: 16px" (click)="abrirVehiculo()"><app-icon name="car" />Agregar vehículo</button>
+              }
             </div>
             @for (v of f.vehiculos; track v.placa) {
               <div class="card">
@@ -144,7 +151,7 @@ type Tab = 'clientes' | 'vehiculos';
           <div class="section-label" style="margin-top: 4px">Vehículo principal (opcional)</div>
           <div class="row2">
             <div class="field"><label for="n-pla">Placa</label><input id="n-pla" formControlName="placa" maxlength="10" placeholder="ABC123">
-              @if (formNuevo.controls.placa.invalid) { <span class="err">Entre 5 y 8 letras o números</span> }</div>
+              @if (formNuevo.controls.placa.invalid) { <span class="err">Carro: ABC123 · Moto: ABC12D</span> }</div>
             <div class="field"><label for="n-tip">Tipo</label><select id="n-tip" formControlName="tipo"><option value="CARRO">Carro</option><option value="MOTO">Moto</option></select></div>
           </div>
           <div class="row2">
@@ -158,6 +165,30 @@ type Tab = 'clientes' | 'vehiculos';
           <div class="dialog-actions">
             <button type="button" class="btn btn-outline" (click)="nuevo.set(false)">Cancelar</button>
             <button class="btn btn-primary" [disabled]="formNuevo.invalid || guardando()">Guardar cliente</button>
+          </div>
+        </form>
+      </app-dialog>
+    }
+
+    @if (agregandoVehiculo() && ficha(); as f) {
+      <app-dialog [titulo]="'Agregar vehículo a ' + f.nombre" (cerrar)="agregandoVehiculo.set(false)">
+        <form [formGroup]="formVehiculo" (ngSubmit)="crearVehiculo(f.id_usuario)">
+          <div class="row2">
+            <div class="field"><label for="v-pla">Placa</label><input id="v-pla" formControlName="placa" maxlength="10" placeholder="ABC123">
+              @if (formVehiculo.controls.placa.invalid && formVehiculo.controls.placa.dirty) { <span class="err">Carro: ABC123 · Moto: ABC12D</span> }</div>
+            <div class="field"><label for="v-tip">Tipo</label><select id="v-tip" formControlName="tipo"><option value="CARRO">Carro</option><option value="MOTO">Moto</option></select></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="v-mar">Marca</label><input id="v-mar" formControlName="marca"></div>
+            <div class="field"><label for="v-lin">Línea</label><input id="v-lin" formControlName="linea"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="v-col">Color</label><input id="v-col" formControlName="color"></div>
+            <div class="field"><label for="v-ano">Año modelo</label><input id="v-ano" type="number" formControlName="anio"></div>
+          </div>
+          <div class="dialog-actions">
+            <button type="button" class="btn btn-outline" (click)="agregandoVehiculo.set(false)">Cancelar</button>
+            <button class="btn btn-primary" [disabled]="formVehiculo.invalid || guardando()">Guardar vehículo</button>
           </div>
         </form>
       </app-dialog>
@@ -198,6 +229,7 @@ export class ClientesComponent {
   readonly nuevo = signal(false);
   readonly editando = signal<Ficha | null>(null);
   readonly guardando = signal(false);
+  readonly agregandoVehiculo = signal(false);
 
   readonly fecha = fecha; readonly cop = cop; readonly iniciales = iniciales; readonly doc = docFmt; readonly tel = telFmt;
 
@@ -207,6 +239,10 @@ export class ClientesComponent {
     telefono: [''], email: ['', Validators.email], direccion: [''],
     placa: ['', Validators.pattern(/^[A-Za-z0-9\s-]{0,10}$/)], tipo: ['CARRO'], marca: [''], linea: [''], color: [''],
     anio: this.fb.control<number | null>(null),
+  });
+  readonly formVehiculo = this.fb.nonNullable.group({
+    placa: ['', [Validators.required, Validators.pattern(/^\s*[A-Za-z]{3}[\s-]?\d{2}[A-Za-z0-9]?\s*$/)]], tipo: ['CARRO'],
+    marca: [''], linea: [''], color: [''], anio: this.fb.control<number | null>(null),
   });
   readonly formEdit = this.fb.nonNullable.group({
     nombre: ['', [Validators.required, Validators.minLength(2)]], telefono: [''], email: ['', Validators.email], direccion: [''],
@@ -265,5 +301,37 @@ export class ClientesComponent {
         next: f => { this.guardando.set(false); this.editando.set(null); this.ficha.set(f); this.toast.ok('Cliente actualizado'); this.cargar(); },
         error: e => { this.guardando.set(false); this.toast.error(e); },
       });
+  }
+
+  cambiarActivo(f: Ficha): void {
+    this.guardando.set(true);
+    this.api.actualizar(f.id_usuario, { activo: !f.activo }).subscribe({
+      next: r => {
+        this.guardando.set(false); this.ficha.set(r); this.cargar();
+        this.toast.ok(r.activo ? `${r.nombre} quedó activo` : `${r.nombre} quedó inactivo`);
+      },
+      error: e => { this.guardando.set(false); this.toast.error(e); },
+    });
+  }
+
+  abrirVehiculo(): void {
+    this.formVehiculo.reset({ tipo: 'CARRO' });
+    this.agregandoVehiculo.set(true);
+  }
+
+  crearVehiculo(idUsuario: number): void {
+    if (this.formVehiculo.invalid) return;
+    const v = this.formVehiculo.getRawValue();
+    this.guardando.set(true);
+    this.api.crearVehiculo({
+      id_usuario: idUsuario, placa: normalizarPlaca(v.placa), tipo: v.tipo, marca: v.marca || null,
+      linea: v.linea || null, color: v.color || null, anio_modelo: v.anio,
+    }).subscribe({
+      next: f => {
+        this.guardando.set(false); this.agregandoVehiculo.set(false); this.ficha.set(f); this.cargar();
+        this.toast.ok('Vehículo agregado');
+      },
+      error: e => { this.guardando.set(false); this.toast.error(e); },
+    });
   }
 }

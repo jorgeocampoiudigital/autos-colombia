@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError, DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import db
@@ -55,6 +55,9 @@ _CONSTRAINTS: dict[str, str] = {
 }
 
 
+_SQLSTATE_NEGOCIO = {"P0001", "23000"}
+
+
 def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(AppError)
     def _app_error(e: AppError):
@@ -77,12 +80,20 @@ def register_error_handlers(app: Flask) -> None:
             return _resp(_CONSTRAINTS[nombre], 409)
         return _resp("La operación viola una regla de integridad de los datos", 409)
 
+    @app.errorhandler(OperationalError)
+    def _db_caida(e: OperationalError):
+        db.session.rollback()
+        app.logger.exception("Base de datos no disponible")
+        return _resp("La base de datos no está disponible. Intenta de nuevo en unos segundos", 503)
+
     @app.errorhandler(DBAPIError)
     def _dbapi(e: DBAPIError):
         db.session.rollback()
-        
+        # Solo se muestran al usuario los mensajes de negocio de nuestros triggers
+        # (RAISE EXCEPTION -> P0001; bloquear_borrado -> 23000). El resto se registra y no se expone.
+        sqlstate = getattr(e.orig, "sqlstate", None)
         primary = getattr(getattr(e.orig, "diag", None), "message_primary", None)
-        if primary:
+        if primary and sqlstate in _SQLSTATE_NEGOCIO:
             return _resp(primary, 409)
         app.logger.exception("Error de base de datos")
         return _resp("Error de base de datos", 500)

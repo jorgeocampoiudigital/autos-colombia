@@ -208,6 +208,8 @@ DECLARE
   v_tipo_cel  tipo_vehiculo;
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    -- Bloquea la celda: serializa esta entrada con un mantenimiento simultáneo
+    PERFORM 1 FROM celda WHERE id_celda = NEW.id_celda FOR UPDATE;
     SELECT tipo INTO v_tipo_veh FROM vehiculo WHERE placa = NEW.placa;
     SELECT tipo INTO v_tipo_cel FROM celda    WHERE id_celda = NEW.id_celda;
     IF v_tipo_veh <> v_tipo_cel THEN
@@ -238,6 +240,20 @@ CREATE TRIGGER trg_movimiento_nodelete BEFORE DELETE ON movimiento
   FOR EACH ROW EXECUTE FUNCTION bloquear_borrado();
 CREATE TRIGGER trg_movimiento_notruncate BEFORE TRUNCATE ON movimiento
   FOR EACH STATEMENT EXECUTE FUNCTION bloquear_borrado();
+
+-- Una celda con un vehículo dentro no puede pasar a mantenimiento
+CREATE OR REPLACE FUNCTION validar_mantenimiento() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM 1 FROM celda WHERE id_celda = NEW.id_celda FOR UPDATE;
+  IF NEW.fecha_fin IS NULL AND EXISTS (SELECT 1 FROM movimiento
+             WHERE id_celda = NEW.id_celda AND fecha_salida IS NULL) THEN
+    RAISE EXCEPTION 'No se puede deshabilitar una celda con un vehículo dentro';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE OR REPLACE TRIGGER trg_mantenimiento_validar BEFORE INSERT ON mantenimiento_celda
+  FOR EACH ROW EXECUTE FUNCTION validar_mantenimiento();
 
 -- ---------------------------------------------------------------------
 -- novedad ( evidencias + historial de estados)
