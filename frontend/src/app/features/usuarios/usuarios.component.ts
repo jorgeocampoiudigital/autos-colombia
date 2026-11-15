@@ -28,7 +28,7 @@ import { IconComponent } from '../../shared/icon.component';
         <div class="card kpi"><span class="kpi-icon"><app-icon name="shield" /></span><span class="big" style="color: var(--ink)">{{ datos().resumen.administradores }}</span><span class="muted">Administradores activos</span></div>
       </div>
 
-      <div class="grid col-main-side">
+      <div class="stack">
         <div class="card">
           <div class="toolbar">
             <div class="input-icon"><app-icon name="search" /><input [formControl]="q" placeholder="Buscar por nombre o usuario"></div>
@@ -44,7 +44,7 @@ import { IconComponent } from '../../shared/icon.component';
                   <tr [style.opacity]="u.activo ? 1 : .6">
                     <td><div style="display: flex; gap: 10px; align-items: center">
                       <span class="avatar" [class.on]="u.rol === 'ADMIN'">{{ iniciales(u.nombre) }}</span>
-                      <div><div class="name">{{ u.nombre }} @if (u.id === auth.operador()?.id) { <span class="muted" style="font-weight: 400">(tú)</span> }</div>
+                      <div style="white-space: nowrap"><div class="name">{{ u.nombre }} @if (u.id === auth.operador()?.id) { <span class="muted" style="font-weight: 400">(tú)</span> }</div>
                         <div class="sub">{{ u.usuario }}</div></div></div></td>
                     <td><span class="badge" [class.info]="u.rol === 'ADMIN'" [class.muted]="u.rol !== 'ADMIN'">{{ u.rol === 'ADMIN' ? 'Administrador' : 'Operador' }}</span></td>
                     <td>
@@ -53,7 +53,7 @@ import { IconComponent } from '../../shared/icon.component';
                       @else if (u.debe_cambiar_clave) { <span class="badge info"><i class="dot"></i>Clave temporal</span> }
                       @else { <span class="badge ok"><i class="dot"></i>Activo</span> }
                     </td>
-                    <td>@if (u.ultimo_acceso) { {{ fecha(u.ultimo_acceso) }} <div class="sub">{{ hora(u.ultimo_acceso) }}</div> } @else { <span class="muted">Nunca</span> }</td>
+                    <td style="white-space: nowrap">@if (u.ultimo_acceso) { {{ fecha(u.ultimo_acceso) }} <div class="sub">{{ hora(u.ultimo_acceso) }}</div> } @else { <span class="muted">Nunca</span> }</td>
                     <td style="white-space: nowrap; text-align: right">
                       @if (u.bloqueado) { <button type="button" class="btn btn-outline btn-sm" (click)="desbloquear(u)">Desbloquear</button> }
                       <button type="button" class="btn btn-outline btn-sm" (click)="abrirEdicion(u)" title="Editar nombre y rol">Editar</button>
@@ -71,8 +71,8 @@ import { IconComponent } from '../../shared/icon.component';
           </div>
         </div>
 
-        <div class="stack">
-          <div class="card">
+        <div class="card roles">
+          <div>
             <h2 class="card-title">Roles</h2>
             <dl class="dl">
               <dt><span class="badge info">Administrador</span></dt>
@@ -80,6 +80,9 @@ import { IconComponent } from '../../shared/icon.component';
               <dt><span class="badge muted">Operador</span></dt>
               <dd>Entradas y salidas, clientes y vehículos, pagos, novedades y consultas.</dd>
             </dl>
+          </div>
+          <div>
+            <h2 class="card-title">Reglas</h2>
             <p class="note">Siempre debe quedar al menos un administrador activo. Nadie puede desactivarse ni cambiar su propio rol.</p>
             <p class="note">Tras 5 intentos fallidos el usuario se bloquea 15 minutos. Asignar una clave temporal también lo desbloquea.</p>
           </div>
@@ -143,7 +146,9 @@ import { IconComponent } from '../../shared/icon.component';
     .dl { display: grid; gap: 4px; margin: 6px 0 0; }
     .dl dt { margin-top: 12px; }
     .dl dd { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
-    .tbl td .btn-sm + .btn-sm { margin-left: 6px; }`],
+    .tbl td .btn-sm + .btn-sm { margin-left: 6px; }
+    .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    @media (max-width: 900px) { .roles { grid-template-columns: 1fr; } }`],
 })
 export class UsuariosComponent {
   readonly auth = inject(AuthService);
