@@ -37,9 +37,15 @@ La URL de la API está en `src/environments/environment.ts`. CORS solo permite `
 ```powershell
 createdb -U postgres parqueadero_test
 $env:TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/parqueadero_test"
-cd backend ; pytest -q                  # 70 pruebas contra PostgreSQL real
+cd backend ; pytest -q                  # 84 pruebas contra PostgreSQL real
 ```
 Las pruebas borran y recrean el esquema de `parqueadero_test` en cada caso; no las apuntes a la base de desarrollo.
+
+| Archivo | Cubre | Pruebas |
+|---|---|---|
+| `tests/test_api.py` | Iteración 1 (entradas/salidas) y reglas generales | 21 |
+| `tests/test_iteracion2.py` · `tests/test_usuarios.py` | Iteración 2 (clientes, celdas, usuarios y roles) | 49 |
+| `tests/test_iteracion3_pagos.py` | Iteración 3 (cobros, pagos, comprobantes, indicadores) · casos `CP-P01`…`CP-P14` del plan de pruebas | 14 |
 
 ### Actualizar una base creada antes de la Iteración 2
 Si ya tienes datos y no quieres ejecutar `init-db --reset`, aplica las migraciones en orden (no borran datos y se pueden ejecutar más de una vez):
@@ -92,6 +98,10 @@ Cada conexión a la base fija la zona horaria `America/Bogota`, de modo que `CUR
 | Movimientos sin borrar ni alterar | triggers `bloquear_borrado` / `validar_movimiento` |
 | Mensualidades sin solapes | `EXCLUDE USING gist` por celda y por placa |
 | Pago ≤ saldo, sin pagos concurrentes de más | `SELECT … FOR UPDATE` sobre el cobro |
+| Sin pagos a cobros ya pagados, de valor no positivo o con fecha futura | `pago_service.registrar_pago` + Pydantic (`PagoIn`) |
+| Pagos sin borrar | trigger `trg_pago_nodelete` (`bloquear_borrado`) |
+| Cobro del periodo al crear la mensualidad | `cliente_service.crear_mensualidad` (vence a `DIAS_VENCIMIENTO_COBRO` = 14 días del inicio) |
+| Soportes de pago solo JPG/PNG/WEBP/PDF | `archivo_routes` (nombre aleatorio en disco) |
 
 El estado de una celda (Ocupada / Vacía asignada / Disponible / Fuera de servicio), la vigencia de una mensualidad y la mora de un cobro **se calculan** (vistas `v_celda_estado`, `v_cobro_saldo`, `v_mensualidad_estado`); no se guardan.
 
@@ -111,5 +121,9 @@ Códigos: `401` sin sesión o sesión inválida · `403` sin permiso o contrase�
 | Iteración | Alcance | Estado |
 |---|---|---|
 | 1 | Entrada y salida de vehículos | Entregada |
-| 2 | Gestión de usuarios (clientes, vehículos, mensualidades, usuarios del sistema y roles) y gestión de celdas | Implementada |
-| 3 | Gestión de pagos (y novedades) | Ya implementada en el código; se documenta y prueba en la Iteración 3 |
+| 2 | Gestión de usuarios (clientes, vehículos, mensualidades, usuarios del sistema y roles) y gestión de celdas | Entregada |
+| 3 | Gestión de pagos (cobros, pagos parciales y totales, comprobantes, indicadores, exportación) | Implementada y probada (`test_iteracion3_pagos.py`) |
+
+### Pendiente
+- El cobro solo se genera al crear la mensualidad: falta generar automáticamente el cobro de cada mes en las renovaciones.
+- Recordatorios de vencimiento y almacenamiento de soportes en la nube.
