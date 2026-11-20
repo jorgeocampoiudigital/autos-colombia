@@ -66,7 +66,8 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(ValidationError)
     def _validation(e: ValidationError):
         detalles = [
-            {"campo": ".".join(str(p) for p in err["loc"]), "mensaje": err["msg"]}
+            # Pydantic antepone "Value error, " a los mensajes de nuestros validadores: se quita
+            {"campo": ".".join(str(p) for p in err["loc"]), "mensaje": err["msg"].removeprefix("Value error, ")}
             for err in e.errors(include_url=False, include_context=False, include_input=False)
         ]
         return _resp("Datos inválidos", 422, detalles)

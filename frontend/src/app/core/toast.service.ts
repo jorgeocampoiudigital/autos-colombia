@@ -11,7 +11,10 @@ export class ToastService {
   ok(texto: string): void { this.mostrar('ok', texto); }
   error(e: unknown): void {
     const h = e as HttpErrorResponse;
-    const msg = (h?.error as { error?: string } | null)?.error
+    const cuerpo = h?.error as { error?: string; details?: { mensaje?: string }[] } | null;
+    // En un 422 el motivo concreto viene en details (p. ej. "Placa inválida para carro…")
+    const detalle = cuerpo?.details?.find(d => d.mensaje)?.mensaje;
+    const msg = (detalle ? `${cuerpo?.error ?? 'Datos inválidos'}: ${detalle}` : cuerpo?.error)
       ?? (h?.status === 0 ? 'No hay conexión con el servidor' : 'Ocurrió un error inesperado');
     this.mostrar('error', msg);
   }
