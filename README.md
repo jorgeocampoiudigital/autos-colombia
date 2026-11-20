@@ -122,7 +122,7 @@ Códigos: `401` sin sesión o sesión inválida · `403` sin permiso o contrase�
 |---|---|---|
 | 1 | Entrada y salida de vehículos | Entregada |
 | 2 | Gestión de usuarios (clientes, vehículos, mensualidades, usuarios del sistema y roles) y gestión de celdas | Entregada |
-| 3 | Gestión de pagos (cobros, pagos parciales y totales, comprobantes, indicadores, exportación) | Implementada y probada (`test_iteracion3_pagos.py`); diagramas y mockups en [`docs/iteracion-3`](docs/iteracion-3/README.md) |
+| 3 | Gestión de pagos (cobros, pagos parciales y totales, comprobantes, indicadores, exportación) | Implementada y probada (`test_iteracion3_pagos.py`) |
 
 ### Pendiente
 - El cobro solo se genera al crear la mensualidad: falta generar automáticamente el cobro de cada mes en las renovaciones.
